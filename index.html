@@ -36,7 +36,7 @@
 
     <script>
         // رابط Web App الخاص بك
-        const API_URL = "https://script.google.com/macros/s/AKfycbw_g7H5EKoyl7ZzileYJy3N3MOUsvDHQDNkKMlroYkfVx__sXOgtwQVuqORj2VpkhXV/exec";
+        const API_URL = "https://script.google.com/macros/s/AKfycbwYRvRFjRb2pZ5aayQWFFbAm2ExlL8ykn-P93dz4b-HLMw_I08JEpUVuT6UHigwLRvy/exec";
         let currentUser = null;
         let syncInterval = null;
 
@@ -333,11 +333,35 @@
                 </div>
             </div>
         </div>
+
+        <!-- إرسال رمز تفعيل من طرف الأستاذة + طلبات الدفع المعلقة -->
+        <div class="glass-card p-6 rounded-3xl mt-8 space-y-6">
+            <h3 class="font-bold text-xl border-b pb-2 dark:border-slate-700 flex items-center gap-2">
+                <i class="fa-solid fa-key text-brand-blue dark:text-brand-yellow"></i> إرسال رمز تفعيل للطالب
+            </h3>
+
+            <!-- إرسال يدوي مباشر بدون انتظار وصل -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-3 items-end bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-100 dark:border-slate-700">
+                <input type="email" id="manualCodeEmail" placeholder="بريد الطالب" class="p-3 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-800 text-sm outline-none focus:ring-2 focus:ring-brand-blue">
+                <input type="text" id="manualCodeCourseId" placeholder="معرف الدورة (مثال: C1)" class="p-3 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-800 text-sm outline-none focus:ring-2 focus:ring-brand-blue">
+                <button onclick="issueActivationCode()" class="py-3 bg-brand-blue text-white font-bold rounded-xl hover:bg-brand-darkblue transition text-sm"><i class="fa-solid fa-paper-plane ml-1"></i> إرسال الرمز الآن</button>
+            </div>
+
+            <!-- قائمة طلبات الدفع (صور الوصولات) -->
+            <div>
+                <h4 class="font-bold text-sm text-slate-600 dark:text-slate-300 mb-3">طلبات الدفع بانتظار التفعيل:</h4>
+                <div id="pendingReceiptsList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+            </div>
+        </div>
     </section>
 
     <!-- فضاء الطالب -->
     <section id="studentSection" class="view-section hidden max-w-7xl mx-auto px-6 py-10">
         <h2 class="text-3xl font-black mb-8 text-brand-blue dark:text-white border-b border-slate-200 dark:border-slate-800 pb-4">فضاء التعلم الخاص بك</h2>
+
+        <!-- عنصر مخفي لاختيار صورة وصل الدفع -->
+        <input type="file" id="receiptFileInput" accept="image/*" class="hidden" onchange="handleReceiptFileSelected()">
+
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <!-- قائمة دورات الطالب -->
             <div class="lg:col-span-2 space-y-8">
@@ -520,6 +544,7 @@
                 if (res.role === 'teacher') {
                     showSection('teacherSection');
                     loadTeacherCourses();
+                    loadPendingReceipts();
                     startAutoSync('teacher');
                 } else {
                     showSection('studentSection');
@@ -712,7 +737,7 @@
                             </div>
                         ` : `
                             <div class="space-y-3 pt-4 relative z-10 border-t border-slate-100 dark:border-slate-700">
-                                <button onclick="submitReceipt('${c.CourseID}')" class="w-full py-3 bg-brand-yellow text-brand-darkblue font-bold rounded-xl text-sm shadow hover:bg-yellow-400 transition"><i class="fa-solid fa-file-invoice-dollar ml-1"></i> رفع وصل الدفع واستلام الكود</button>
+                                <button onclick="submitReceipt('${c.CourseID}')" class="w-full py-3 bg-brand-yellow text-brand-darkblue font-bold rounded-xl text-sm shadow hover:bg-yellow-400 transition"><i class="fa-solid fa-camera ml-1"></i> رفع صورة وصل الدفع واستلام الكود</button>
                                 <button onclick="enterActivationCode('${c.CourseID}')" class="w-full py-2.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold rounded-xl text-sm border border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 transition">إدخال رمز التفعيل 🔑</button>
                             </div>
                         `}
@@ -721,13 +746,35 @@
             }).join('');
         }
 
-        async function submitReceipt(courseId) {
-            const url = prompt("أدخل رابط صورة وصل الدفع (CCP/BaridiMob):");
-            if (url) {
-                const res = await postData({ action: 'submitReceipt', studentEmail: currentUser.student.Email, courseId: courseId, receiptUrl: url });
+        // رفع صورة وصل الدفع (بدل إدخال رابط يدويا)
+        let pendingReceiptCourseId = null;
+
+        function submitReceipt(courseId) {
+            pendingReceiptCourseId = courseId;
+            document.getElementById('receiptFileInput').click();
+        }
+
+        async function handleReceiptFileSelected() {
+            const input = document.getElementById('receiptFileInput');
+            const file = input.files[0];
+            input.value = '';
+            if (!file || !pendingReceiptCourseId) return;
+
+            const courseId = pendingReceiptCourseId;
+            const reader = new FileReader();
+            reader.onload = async () => {
+                const res = await postData({
+                    action: 'submitReceipt',
+                    studentEmail: currentUser.student.Email,
+                    courseId: courseId,
+                    receiptBase64: reader.result,
+                    receiptMime: file.type
+                });
                 alert(res.message);
+                pendingReceiptCourseId = null;
                 loadStudentDashboard();
-            }
+            };
+            reader.readAsDataURL(file);
         }
 
         async function enterActivationCode(courseId) {
@@ -737,6 +784,48 @@
                 alert(res.message);
                 if(res.status === 'success') loadStudentDashboard();
             }
+        }
+
+        // إرسال / تجديد رمز تفعيل من طرف الأستاذة مباشرة
+        async function issueActivationCode(email, courseId) {
+            const targetEmail = email || document.getElementById('manualCodeEmail').value.trim();
+            const targetCourseId = courseId || document.getElementById('manualCodeCourseId').value.trim();
+            if (!targetEmail || !targetCourseId) {
+                alert('يرجى إدخال بريد الطالب ومعرف الدورة');
+                return;
+            }
+            const res = await postData({ action: 'issueActivationCode', studentEmail: targetEmail, courseId: targetCourseId });
+            alert(res.message);
+            if (res.status === 'success') {
+                document.getElementById('manualCodeEmail').value = '';
+                document.getElementById('manualCodeCourseId').value = '';
+                loadPendingReceipts();
+            }
+        }
+
+        // عرض طلبات الدفع المعلقة مع صورة الوصل، مع زر لإرسال/تجديد رمز التفعيل مباشرة
+        async function loadPendingReceipts() {
+            const container = document.getElementById('pendingReceiptsList');
+            if (!container) return;
+            const subs = await fetchData('getAllSubscriptions');
+            if (!Array.isArray(subs) || subs.length === 0) {
+                container.innerHTML = `<p class="text-sm text-slate-400 col-span-full text-center py-4">لا توجد طلبات دفع حالياً.</p>`;
+                return;
+            }
+            const pending = subs.filter(s => s.Status !== 'مفعل');
+            if (pending.length === 0) {
+                container.innerHTML = `<p class="text-sm text-slate-400 col-span-full text-center py-4">لا توجد طلبات دفع بانتظار التفعيل.</p>`;
+                return;
+            }
+            container.innerHTML = pending.map(s => `
+                <div class="p-4 bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm space-y-2">
+                    ${s.ReceiptURL ? `<img src="${s.ReceiptURL}" class="w-full h-32 object-cover rounded-xl cursor-pointer" onclick="window.open('${s.ReceiptURL}','_blank')" alt="صورة الوصل">` : `<div class="w-full h-32 bg-slate-100 dark:bg-slate-700 rounded-xl flex items-center justify-center text-xs text-slate-400">لا توجد صورة وصل</div>`}
+                    <div class="text-xs font-bold text-slate-700 dark:text-slate-200">${s.StudentEmail || ''}</div>
+                    <div class="text-xs text-slate-500">الدورة: ${s.CourseID || ''}</div>
+                    <div class="text-[11px] text-slate-400">الكود الحالي: ${s.ActivationCode || '-'}</div>
+                    <button onclick="issueActivationCode('${s.StudentEmail}', '${s.CourseID}')" class="w-full py-2 bg-brand-yellow text-brand-darkblue text-xs font-bold rounded-lg hover:bg-yellow-400 transition"><i class="fa-solid fa-key ml-1"></i> إرسال / تجديد رمز التفعيل</button>
+                </div>
+            `).join('');
         }
 
         async function loadForumMessages(elementId) {
@@ -878,13 +967,14 @@
             loadForumMessages('teacherForumList');
         }
 
-        // التحديث التلقائي الفوري للمنتدى والدورات كل 3 ثوانٍ
+        // التحديث التلقائي الفوري للمنتدى والدورات وطلبات الدفع كل 3 ثوانٍ
         function startAutoSync(role) {
             if(syncInterval) clearInterval(syncInterval);
             
             const sync = () => {
                 if (role === 'teacher') {
                     loadForumMessages('teacherForumList');
+                    loadPendingReceipts();
                 } else {
                     loadForumMessages('studentForumList');
                     loadStudentDashboard();
