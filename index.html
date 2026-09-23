@@ -36,7 +36,7 @@
 
     <script>
         // رابط Web App الخاص بك
-        const API_URL = "https://script.google.com/macros/s/AKfycbwYRvRFjRb2pZ5aayQWFFbAm2ExlL8ykn-P93dz4b-HLMw_I08JEpUVuT6UHigwLRvy/exec";
+        const API_URL = "https://script.google.com/macros/s/AKfycbw_g7H5EKoyl7ZzileYJy3N3MOUsvDHQDNkKMlroYkfVx__sXOgtwQVuqORj2VpkhXV/exec";
         let currentUser = null;
         let syncInterval = null;
 
@@ -283,7 +283,16 @@
                     <input type="text" id="courseTitle" placeholder="عنوان الدورة" required class="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-800/50 text-sm focus:ring-2 focus:ring-brand-blue outline-none transition">
                     <textarea id="courseDesc" placeholder="وصف الدورة والأهداف" required class="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-800/50 text-sm h-24 resize-none focus:ring-2 focus:ring-brand-blue outline-none transition"></textarea>
                     <input type="number" id="coursePrice" placeholder="السعر (DA)" required class="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-800/50 text-sm focus:ring-2 focus:ring-brand-blue outline-none transition">
-                    <input type="text" id="courseImage" placeholder="رابط صورة الدورة (اختياري)" class="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-800/50 text-sm focus:ring-2 focus:ring-brand-blue outline-none transition">
+                    <div class="space-y-2">
+                        <label class="text-sm font-bold text-slate-600 dark:text-slate-300 flex items-center gap-1"><i class="fa-solid fa-image"></i> صورة الدورة (اختياري):</label>
+                        <div class="flex items-center gap-3">
+                            <img id="courseImagePreview" src="" class="w-16 h-16 rounded-xl object-cover border border-slate-200 dark:border-slate-700 hidden">
+                            <input type="file" id="courseImageFile" accept="image/*" class="hidden" onchange="handleCourseImageSelect(event)">
+                            <button type="button" onclick="document.getElementById('courseImageFile').click()" class="px-4 py-2.5 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold rounded-xl hover:bg-slate-200 dark:hover:bg-slate-600 transition">اختر صورة</button>
+                            <span id="courseImageFileName" class="text-xs text-slate-400"></span>
+                        </div>
+                    </div>
+                    <input type="hidden" id="courseImage">
 
                     <div class="border-t border-slate-100 dark:border-slate-700 pt-4 space-y-2">
                         <label class="text-sm font-bold text-red-500 flex items-center gap-1"><i class="fa-solid fa-tower-broadcast"></i> بث مباشر (اختياري):</label>
@@ -480,6 +489,24 @@
             document.getElementById(id).classList.remove('hidden');
         }
 
+        // حالة صورة الدورة المختارة (ترفع فعليا بدل إدخال رابط يدويا)
+        let selectedCourseImage = { base64: null, mime: null };
+
+        function handleCourseImageSelect(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = () => {
+                selectedCourseImage.base64 = reader.result;
+                selectedCourseImage.mime = file.type;
+                const preview = document.getElementById('courseImagePreview');
+                preview.src = reader.result;
+                preview.classList.remove('hidden');
+                document.getElementById('courseImageFileName').innerText = file.name;
+            };
+            reader.readAsDataURL(file);
+        }
+
         function addVideoInput(title = '', url = '') {
             const container = document.getElementById('videosContainer');
             const div = document.createElement('div');
@@ -585,6 +612,8 @@
                 description: document.getElementById('courseDesc').value,
                 price: document.getElementById('coursePrice').value,
                 imageUrl: document.getElementById('courseImage').value,
+                imageBase64: selectedCourseImage.base64 || undefined,
+                imageMime: selectedCourseImage.mime || undefined,
                 liveLink: document.getElementById('courseLiveLink').value,
                 liveTime: document.getElementById('courseLiveTime').value,
                 videos: videos, files: files
@@ -603,6 +632,9 @@
             ['courseId', 'courseTitle', 'courseDesc', 'coursePrice', 'courseImage', 'courseLiveLink', 'courseLiveTime'].forEach(id => document.getElementById(id).value = '');
             document.getElementById('videosContainer').innerHTML = '';
             document.getElementById('filesContainer').innerHTML = '';
+            selectedCourseImage = { base64: null, mime: null };
+            document.getElementById('courseImagePreview').classList.add('hidden');
+            document.getElementById('courseImageFileName').innerText = '';
         }
 
         function editCourse(c) {
@@ -612,6 +644,10 @@
             document.getElementById('courseDesc').value = c.Description || '';
             document.getElementById('coursePrice').value = c.Price || '';
             document.getElementById('courseImage').value = c.ImageURL || '';
+            selectedCourseImage = { base64: null, mime: null };
+            document.getElementById('courseImageFileName').innerText = '';
+            const courseImgPreview = document.getElementById('courseImagePreview');
+            if (c.ImageURL) { courseImgPreview.src = c.ImageURL; courseImgPreview.classList.remove('hidden'); } else { courseImgPreview.classList.add('hidden'); }
             document.getElementById('courseLiveLink').value = c.LiveLink || '';
             document.getElementById('courseLiveTime').value = c.LiveTime || '';
             document.getElementById('videosContainer').innerHTML = '';
