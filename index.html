@@ -466,19 +466,20 @@
     </div>
 
     <!-- نافذة تشغيل الفيديو المضمّن: الفيديو يبقى داخل المنصة ولا يُفتح أبداً في تبويب أو موقع خارجي -->
-    <div id="videoPlayerModal" class="fixed inset-0 bg-black/95 hidden z-[60] flex items-center justify-center p-4" oncontextmenu="return false">
+    <div id="videoPlayerModal" class="fixed inset-0 bg-black hidden z-[60] flex items-center justify-center p-4" oncontextmenu="return false">
         <button onclick="closeVideoPlayer()" class="absolute top-5 left-5 text-white hover:text-brand-yellow transition text-3xl z-10"><i class="fa-solid fa-xmark"></i></button>
         <div id="videoPlayerTitle" class="absolute top-5 right-5 text-white font-bold text-sm bg-black/50 px-4 py-2 rounded-xl max-w-[60%] truncate"></div>
         <div class="w-full max-w-5xl flex flex-col gap-3">
-            <div id="videoPlayerBox" class="w-full aspect-video bg-black rounded-2xl overflow-hidden shadow-2xl relative">
-                <div id="videoPlayerLoading" class="absolute inset-0 flex items-center justify-center text-white/70 text-sm pointer-events-none"><i class="fa-solid fa-circle-notch fa-spin ml-2"></i> جاري التحميل...</div>
-                <iframe id="videoPlayerFrame" src="" class="w-full h-full relative z-[1]" allow="autoplay; fullscreen; encrypted-media; picture-in-picture" allowfullscreen frameborder="0" referrerpolicy="strict-origin-when-cross-origin"></iframe>
-                <video id="videoPlayerNative" class="w-full h-full hidden relative z-[1] bg-black" controls playsinline webkit-playsinline preload="metadata" controlsList="nodownload"></video>
+            <div id="videoPlayerLoading" class="text-center text-white/70 text-xs"><i class="fa-solid fa-circle-notch fa-spin ml-1"></i> جاري تحميل الفيديو...</div>
+            <!-- مهم: بدون rounded / overflow-hidden / ظل حول الفيديو، لأنها تسبب صوت بلا صورة في بعض هواتف Android -->
+            <div id="videoPlayerBox" class="w-full aspect-video bg-black">
+                <iframe id="videoPlayerFrame" src="" class="w-full h-full" style="border:0" allow="autoplay; fullscreen; encrypted-media; picture-in-picture" allowfullscreen frameborder="0" referrerpolicy="strict-origin-when-cross-origin"></iframe>
+                <video id="videoPlayerNative" class="w-full h-full hidden bg-black" controls playsinline webkit-playsinline preload="metadata" controlsList="nodownload"></video>
             </div>
             <div class="flex flex-col items-center gap-2">
-                <button type="button" id="videoAltBtn" onclick="toggleAltPlayer()" class="bg-brand-yellow text-brand-darkblue font-bold text-sm px-5 py-2.5 rounded-xl shadow-lg active:scale-95 transition"><i class="fa-solid fa-rotate ml-1"></i> الصورة لا تظهر؟ جرّب المشغّل البديل</button>
+                <button type="button" id="videoAltBtn" onclick="toggleAltPlayer()" class="hidden bg-brand-yellow text-brand-darkblue font-bold text-sm px-5 py-2.5 rounded-xl shadow-lg active:scale-95 transition"><i class="fa-solid fa-rotate ml-1"></i> الصورة لا تظهر؟ جرّب المشغّل البديل</button>
                 <div id="videoAltMsg" class="text-xs text-red-300 hidden"></div>
-                <a id="videoPlayerFallback" href="#" target="_blank" rel="noopener" class="text-xs text-white/70 hover:text-brand-yellow underline">أو افتحه في تطبيق Drive / يوتيوب</a>
+                <a id="videoPlayerFallback" href="#" target="_blank" rel="noopener" class="bg-brand-yellow text-brand-darkblue font-bold text-sm px-5 py-2.5 rounded-xl shadow-lg active:scale-95 transition"><i class="fa-solid fa-up-right-from-square ml-1"></i> الصورة لا تظهر؟ افتح الفيديو في تطبيق Drive</a>
             </div>
         </div>
     </div>
